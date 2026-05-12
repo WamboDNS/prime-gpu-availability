@@ -1,0 +1,18 @@
+# Prime Intellect GPU availability watch list.
+#
+# Format:  <gpu_type>  <min>  <max>  [socket]
+#  - gpu_type must match the API's `gpuType` value exactly (case-sensitive).
+#  - min/max are inclusive bounds on the offer's gpuCount.
+#    Use min == max to require an exact count (e.g. exactly 8 GPUs).
+#  - socket is optional: PCIe or SXM.
+#  - "#" comments and blank lines are ignored.
+#
+# Real `gpuType` values seen in the wild include:
+#   H100_80GB, H200_141GB, B300_262GB,
+#   A100_80GB, A100_40GB, A6000_48GB, A40_48GB, A10_24GB,
+#   L4_24GB, RTX4090_24GB, RTX3090_24GB, RTX_PRO_6000B_96GB.
+
+H100_80GB     8   8
+H200_141GB    4   8
+A100_80GB     1   8
+# B300_262GB  4   8   SXM
