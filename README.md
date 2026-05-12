@@ -10,28 +10,25 @@ get a native macOS notification.
 
 ![Menu-bar screenshot](assets/screenshot.png)
 
-```
-[icon] $2471.96   H100 ·   H200 ·   A100 ●10   B300 ·
-       └ balance  └──── per-watched-row badge ─────┘
-                       ●N = N matching offers right now
-                        · = none
-```
-
 A filled `●N` flags configs that currently have matching offers; `·`
 means none. (We keep the prime-intellect template-image icon up front
 and let the glyph carry the signal — SwiftBar can't render
 `templateImage=` together with `color=` or `ansi=true` on the title.)
 
-Click for a dropdown listing the cheapest offers per config (count,
-socket, price/hr, provider, region, stock status). Each offer row is
-clickable — click it to confirm-and-deploy a pod, see below.
+Click the menu-bar item and the dropdown lists every matching offer
+under its watched config — providers, sockets, prices, regions and
+stock status. The match-header is red; each offer row underneath is
+clickable to confirm-and-deploy a pod.
+
+![Dropdown screenshot](assets/dropdown.png)
 
 ## Why
 
 GPU supply on Prime Intellect's marketplace moves in seconds. If you're
 hunting a specific shape — say `8×H100` or `4..8×H200_SXM` — you don't
 want to refresh the dashboard every few minutes. This plugin does it for
-you, in your menu bar, and pokes your phone the moment something matches.
+you, in your menu bar, and lets you deploy a matching offer with one
+click + a confirm dialog.
 
 A sibling project, [`prime-billing-statusbar`][sibling], shows just the
 wallet balance. If you already use it, this plugin shares its API-key
@@ -181,15 +178,6 @@ If you already have separate tokens — e.g. one with `availability:read`
 and another with `billing:read` — keep them in `~/.config/prime-gpu/key`
 and `~/.config/prime-balance/key` respectively. The plugin tries every
 candidate per endpoint and uses whichever one is authorized.
-
-## What it looks like
-
-Click the menu-bar item and the dropdown lists every matching offer
-under its watched config — providers, sockets, prices, regions and
-stock status. Match-headers are red; the rows below them are clickable
-to deploy.
-
-![Dropdown screenshot](assets/dropdown.png)
 
 ## FAQ
 
