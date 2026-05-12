@@ -6,8 +6,7 @@ list of `{gpu_type, min, max}` configurations you care about — and shows
 a glance-able badge in the macOS menu bar, next to your wallet balance.
 
 When a watched configuration transitions from "none" to "available", you
-get both a native macOS notification **and** an optional push to your
-iPhone via [ntfy.sh](https://ntfy.sh).
+get a native macOS notification.
 
 ![Menu-bar screenshot](assets/screenshot.png)
 
@@ -47,7 +46,6 @@ file automatically and supersedes it (it shows the balance too).
 - `/usr/bin/python3` (Apple's system Python — no extra packages needed)
 - A PrimeIntellect API key with `availability:read` scope. Optional:
   `billing:read` scope if you want the wallet balance shown too.
-- *(Optional, for iPhone push)* The free [ntfy](https://ntfy.sh) iOS app.
 
 ## Install
 
@@ -82,7 +80,6 @@ Everything lives in `~/.config/prime-gpu/`:
 | ---------------------------- | ---------------------------------------------------------- |
 | `key`                        | Your API token (one line, no trailing newline). `chmod 600`. |
 | `watch.conf`                 | The list of GPU configurations to watch (format below).    |
-| `ntfy.url`                   | *(Optional)* Full ntfy topic URL for iPhone push.          |
 | `assets/prime-logo-template.png` | The menu-bar icon (alpha-only template, 144 DPI).      |
 | `state.json`                 | Auto-managed: last-seen match counts, for transition detection. |
 
@@ -121,41 +118,6 @@ Real `gpuType` values seen so far:
 | Consumer | `RTX4090_24GB`, `RTX3090_24GB`                                    |
 | CPU-only | `CPU_NODE`                                                        |
 
-### iPhone push (ntfy)
-
-The plugin can mirror its macOS notifications to your phone over
-[ntfy.sh](https://ntfy.sh) — a free, open-source HTTP pub/sub bus with
-an excellent iOS client.
-
-1. Install the **ntfy** app from the App Store
-   ([link](https://apps.apple.com/us/app/ntfy/id1625396347)).
-2. Pick a long, hard-to-guess topic name — anyone who knows the topic
-   can publish to it. A UUID works:
-   ```bash
-   echo "https://ntfy.sh/prime-gpu-$(uuidgen | tr A-Z a-z)" \
-     > ~/.config/prime-gpu/ntfy.url
-   chmod 600 ~/.config/prime-gpu/ntfy.url
-   ```
-3. Open the iOS app, tap **+**, and subscribe to the same topic
-   (just the part after `ntfy.sh/`).
-
-Test it:
-
-```bash
-curl -H 'Title: Hello from your menu bar' \
-     -d 'iPhone push channel is live!' \
-     "$(cat ~/.config/prime-gpu/ntfy.url)"
-```
-
-You should get a notification on your iPhone within a second or two.
-The plugin uses `Priority: high` and the `rocket` tag, so alerts cut
-through quiet hours if you let them.
-
-If you'd rather self-host or use a different push service, you can
-swap ntfy.sh for any service that accepts a `POST <url>` with an
-arbitrary text body and `Title:` header — see `push_ntfy()` in the
-plugin source.
-
 ### Deploy on click
 
 Each offer row in the dropdown is wired to a small helper at
@@ -169,8 +131,8 @@ Each offer row in the dropdown is wired to a small helper at
    `prime-gpu-<timestamp>`).
 4. The script POSTs to `https://api.primeintellect.ai/api/v1/pods/`
    with the offer fields mapped 1:1, plus your chosen name.
-5. A macOS notification (and ntfy push, if configured) reports
-   `Pod provisioning` on success or the API's error `detail` on failure.
+5. A macOS notification reports `Pod provisioning` on success, or the
+   API's error `detail` on failure.
 
 Set `PRIME_DRY_RUN=1` in the plugin's environment to skip the actual
 POST while still exercising the dialogs end-to-end (useful for testing
@@ -234,7 +196,6 @@ Dropdown:
 Balance: $2471.96
 Updated: 21:14:38
 Watching 4 config(s), 9 match(es)
-iPhone push: on
 ─────────────────────────────────────────────────
 H100_80GB [8-8]: none in range (2 outside)
 ─────────────────────────────────────────────────
@@ -263,11 +224,12 @@ Refresh now
 
 **Why no auto-deploy?**
 
-Tempting, but a runaway loop spinning up `8×H200`s the moment they
-appear is a great way to vaporize your wallet by accident. The plugin
-sticks to *passive* signal (menu-bar badge + Mac notification + iPhone
-push). The notification body includes the cheapest match's price so you
-can act on it manually within a few seconds.
+Tempting, but a fully-automatic loop spinning up `8×H200`s the moment
+they appear is a great way to vaporize your wallet by accident. The
+plugin sticks to a *click-to-deploy* flow: the menu-bar badge and the
+macOS notification on transitions tell you something's available, and
+clicking an offer in the dropdown opens a confirm dialog before any pod
+is actually created.
 
 **Why isn't my balance showing?**
 
@@ -288,12 +250,6 @@ all (e.g. only 1× and 2× offers, with your range requiring 8×).
 Not out of the box — the plugin only fires on `0 → ≥1` transitions
 right now. If you want both directions, edit the transition condition
 in `prime-gpu.30s.py` (`main()`, search for `transitions.append`).
-
-**Does this need an Anthropic / Pushover / Pushbullet account?**
-
-No. ntfy.sh is free, anonymous, and FOSS. You can self-host it too
-([docs](https://docs.ntfy.sh/install/)) — just put your own server's
-URL in `ntfy.url`.
 
 ## License
 

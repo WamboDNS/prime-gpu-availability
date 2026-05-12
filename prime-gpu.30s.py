@@ -38,7 +38,6 @@ CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" 
 KEY_FILE = CONFIG_DIR / "key"
 WATCH_FILE = CONFIG_DIR / "watch.conf"
 STATE_FILE = CONFIG_DIR / "state.json"
-NTFY_FILE = CONFIG_DIR / "ntfy.url"
 LOGO_FILE = CONFIG_DIR / "assets" / "prime-logo-template.png"
 
 # Fallback so users of prime-billing-statusbar don't have to duplicate their key.
@@ -169,49 +168,13 @@ def save_state(state):
         pass
 
 
-def notify_local(title, body):
+def notify(title, body):
     safe = lambda s: s.replace("\\", "").replace('"', "'")
     subprocess.Popen(
         ["osascript", "-e",
          f'display notification "{safe(body)}" with title "{safe(title)}"'],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-
-
-def ntfy_url():
-    try:
-        for raw in NTFY_FILE.read_text().splitlines():
-            line = raw.split("#", 1)[0].strip()
-            if line.startswith("http://") or line.startswith("https://"):
-                return line
-    except (FileNotFoundError, PermissionError):
-        pass
-    return None
-
-
-def push_ntfy(url, title, body):
-    req = urllib.request.Request(
-        url,
-        data=body.encode("utf-8"),
-        method="POST",
-        headers={
-            "Title": title,
-            "Priority": "high",
-            "Tags": "rocket",
-            "Click": DASHBOARD,
-        },
-    )
-    try:
-        urllib.request.urlopen(req, timeout=4).read()
-        return True
-    except Exception:
-        return False
-
-
-def alert(title, body, push_url):
-    notify_local(title, body)
-    if push_url:
-        push_ntfy(push_url, title, body)
 
 
 def price_str(item):
@@ -283,9 +246,8 @@ def main():
                 f"{'es' if n != 1 else ''} (cheapest {price_str(cheapest)})"
             )
     save_state(new_state)
-    push_url = ntfy_url()
     for line in transitions:
-        alert("Prime GPU available", line, push_url)
+        notify("Prime GPU available", line)
 
     # NOTE: SwiftBar suppresses templateImage when color= or ansi=true is also
     # set on the title. We pick the icon, and rely on the `●N` glyph (vs `·`)
@@ -308,7 +270,6 @@ def main():
         print(f"Balance: HTTP {wallet_status}")
     print(f"Updated: {datetime.now().strftime('%H:%M:%S')}")
     print(f"Watching {len(watch)} config(s), {total_matches} match(es)")
-    print(f"iPhone push: {'on' if push_url else 'off (no ntfy.url)'}")
 
     for res in results:
         row = res["row"]

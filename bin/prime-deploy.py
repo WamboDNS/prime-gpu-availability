@@ -12,7 +12,7 @@ Workflow:
   2. Show an osascript confirm dialog summarising the offer + price.
   3. Ask for a pod name (default: timestamped).
   4. POST to /api/v1/pods/.
-  5. Notify locally + via ntfy on success or failure.
+  5. Fire a macOS notification on success or failure.
 
 Set PRIME_DRY_RUN=1 to skip the POST (the dialog still runs).
 """
@@ -33,7 +33,6 @@ PODS_DASHBOARD = "https://app.primeintellect.ai/dashboard/pods"
 
 CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" / "prime-gpu")
 KEY_FILE = CONFIG_DIR / "key"
-NTFY_FILE = CONFIG_DIR / "ntfy.url"
 FALLBACK_KEY_FILES = [Path.home() / ".config" / "prime-balance" / "key"]
 
 
@@ -97,7 +96,7 @@ def osa_text(prompt, default="", title="Prime Intellect Deploy"):
     return None
 
 
-def notify_local(title, body):
+def notify(title, body):
     script = (
         f'display notification "{_osa_escape(body)}" with title "{_osa_escape(title)}"'
     )
@@ -105,32 +104,6 @@ def notify_local(title, body):
         ["osascript", "-e", script],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-
-
-def push_ntfy(title, body, click_url=None):
-    try:
-        for raw in NTFY_FILE.read_text().splitlines():
-            line = raw.split("#", 1)[0].strip()
-            if line.startswith("http"):
-                url = line
-                break
-        else:
-            return
-    except (FileNotFoundError, PermissionError):
-        return
-    headers = {"Title": title, "Priority": "high", "Tags": "rocket"}
-    if click_url:
-        headers["Click"] = click_url
-    req = urllib.request.Request(url, data=body.encode("utf-8"), method="POST", headers=headers)
-    try:
-        urllib.request.urlopen(req, timeout=4).read()
-    except Exception:
-        pass
-
-
-def alert(title, body, click_url=None):
-    notify_local(title, body)
-    push_ntfy(title, body, click_url)
 
 
 def http_post(url, key, body):
@@ -173,17 +146,17 @@ def fmt_price(prices):
 
 def main():
     if len(sys.argv) < 2:
-        alert("Deploy", "Missing offer payload.")
+        notify("Deploy", "Missing offer payload.")
         sys.exit(2)
     try:
         offer = decode_offer(sys.argv[1])
     except Exception as e:
-        alert("Deploy: decode failed", str(e))
+        notify("Deploy: decode failed", str(e))
         sys.exit(2)
 
     keys = get_keys()
     if not keys:
-        alert("Deploy: no API key", f"Set {KEY_FILE} first.")
+        notify("Deploy: no API key", f"Set {KEY_FILE} first.")
         sys.exit(2)
 
     summary_lines = [
@@ -229,7 +202,7 @@ def main():
     }
 
     if os.environ.get("PRIME_DRY_RUN") == "1":
-        alert("Deploy (dry-run)", f"Would POST: {json.dumps(request_body)[:120]}…")
+        notify("Deploy (dry-run)", f"Would POST: {json.dumps(request_body)[:120]}…")
         print(json.dumps(request_body, indent=2))
         sys.exit(0)
 
@@ -239,10 +212,9 @@ def main():
         last_status, last_data = status, data
         if 200 <= (status or 0) < 300:
             pod_id = (data or {}).get("id") or ((data or {}).get("pod") or {}).get("id") or "?"
-            alert(
+            notify(
                 "Pod provisioning",
                 f"{name} — {offer['gpuCount']}× {offer['gpuType']} @ {fmt_price(offer.get('prices'))} (id {pod_id})",
-                click_url=PODS_DASHBOARD,
             )
             print(json.dumps(data, indent=2))
             sys.exit(0)
@@ -252,7 +224,7 @@ def main():
         detail = last_data.get("detail") or json.dumps(last_data)[:300]
     elif last_status is not None:
         detail = f"HTTP {last_status}"
-    alert("Deploy failed", str(detail)[:200], click_url=PODS_DASHBOARD)
+    notify("Deploy failed", str(detail)[:200])
     print(f"HTTP {last_status}\n{json.dumps(last_data, indent=2) if last_data else ''}", file=sys.stderr)
     sys.exit(1)
 
