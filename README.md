@@ -9,20 +9,19 @@ When a watched configuration transitions from "none" to "available", you
 get both a native macOS notification **and** an optional push to your
 iPhone via [ntfy.sh](https://ntfy.sh).
 
-![Menu-bar mockup](assets/screenshot.svg)
-
-<sub>(Mock-up — drop a real PNG over `assets/screenshot.svg` to replace.)</sub>
+![Menu-bar screenshot](assets/screenshot.png)
 
 ```
-$2471.96   H100 ·   H200 ×1   A100 ×6   B300 ×2
-└─ balance └──────── per-watched-row badge ────────┘
-                ×N = N matching offers right now
-                 ·  = none
+$2471.96   H100 ·   H200 ·   A100 ×8   B300 ·
+└─ balance └─────── per-watched-row badge ──────┘
+                ×N = N matching offers right now (red)
+                 ·  = none (default menu-bar color)
 ```
 
-The whole line turns green when at least one watched configuration has
-matches. Click for a dropdown that lists the cheapest offers per config
-(count, socket, price/hr, provider, region, stock status).
+Tokens with matches render in red; everything else uses the default
+menu-bar text color. Click for a dropdown that lists the cheapest
+offers per config (count, socket, price/hr, provider, region, stock
+status).
 
 ## Why
 

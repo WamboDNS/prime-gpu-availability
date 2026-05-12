@@ -24,6 +24,12 @@ WALLET_ENDPOINT = f"{API_BASE}/billing/wallet"
 DASHBOARD = "https://app.primeintellect.ai"
 TIMEOUT = 6
 
+ANSI_RED = "\x1b[31m"
+ANSI_RESET = "\x1b[0m"
+MATCH_HEX = "#d4423a"
+NONE_HEX = "#888888"
+ERROR_HEX = "#aa4444"
+
 CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" / "prime-gpu")
 KEY_FILE = CONFIG_DIR / "key"
 WATCH_FILE = CONFIG_DIR / "watch.conf"
@@ -262,7 +268,10 @@ def main():
         n = len(res["matches"])
         new_state[key_id] = n
         total_matches += n
-        title_segs.append(f"{s} ×{n}" if n > 0 else f"{s} ·")
+        if n > 0:
+            title_segs.append(f"{ANSI_RED}{s} ×{n}{ANSI_RESET}")
+        else:
+            title_segs.append(f"{s} ·")
         if n > 0 and prev_state.get(key_id, 0) <= 0:
             cheapest = res["matches"][0]
             transitions.append(
@@ -274,9 +283,7 @@ def main():
     for line in transitions:
         alert("Prime GPU available", line, push_url)
 
-    title_parts = ["  ".join(title_segs)]
-    if total_matches > 0:
-        title_parts.append("color=#1a8a3e")
+    title_parts = ["  ".join(title_segs), "ansi=true"]
     icon = icon_param()
     if icon:
         title_parts.append(icon)
@@ -303,15 +310,15 @@ def main():
         header = f"{row['gpu_type']}{sock} {rng}"
         print("---")
         if "error" in res:
-            print(f"{header}: {res['error']} | color=#aa4444")
+            print(f"{header}: {res['error']} | color={ERROR_HEX}")
             continue
         n = len(res["matches"])
         total = res["total_offered"]
         if n == 0:
             note = "no offers" if total == 0 else f"none in range ({total} outside)"
-            print(f"{header}: {note} | color=#888888")
+            print(f"{header}: {note} | color={NONE_HEX}")
             continue
-        print(f"{header}: {n} match{'es' if n != 1 else ''} | color=#1a8a3e")
+        print(f"{header}: {n} match{'es' if n != 1 else ''} | color={MATCH_HEX}")
         for it in res["matches"][:10]:
             count = it.get("gpuCount")
             gtype = it.get("gpuType", "")
