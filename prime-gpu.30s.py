@@ -24,11 +24,15 @@ WALLET_ENDPOINT = f"{API_BASE}/billing/wallet"
 DASHBOARD = "https://app.primeintellect.ai"
 TIMEOUT = 6
 
-ANSI_RED = "\x1b[31m"
-ANSI_RESET = "\x1b[0m"
 MATCH_HEX = "#d4423a"
 NONE_HEX = "#888888"
 ERROR_HEX = "#aa4444"
+HEADER_HEX = "#999999"
+MATCH_GLYPH = "●"
+NONE_GLYPH = "·"
+
+SCRIPT_DIR = Path(os.path.realpath(__file__)).parent
+DEPLOY_BIN = SCRIPT_DIR / "bin" / "prime-deploy.py"
 
 CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" / "prime-gpu")
 KEY_FILE = CONFIG_DIR / "key"
@@ -269,9 +273,9 @@ def main():
         new_state[key_id] = n
         total_matches += n
         if n > 0:
-            title_segs.append(f"{ANSI_RED}{s} ×{n}{ANSI_RESET}")
+            title_segs.append(f"{s} {MATCH_GLYPH}{n}")
         else:
-            title_segs.append(f"{s} ·")
+            title_segs.append(f"{s} {NONE_GLYPH}")
         if n > 0 and prev_state.get(key_id, 0) <= 0:
             cheapest = res["matches"][0]
             transitions.append(
@@ -283,7 +287,10 @@ def main():
     for line in transitions:
         alert("Prime GPU available", line, push_url)
 
-    title_parts = ["  ".join(title_segs), "ansi=true"]
+    # NOTE: SwiftBar suppresses templateImage when color= or ansi=true is also
+    # set on the title. We pick the icon, and rely on the `●N` glyph (vs `·`)
+    # to signal which configs have matches. Dropdown rows keep their colors.
+    title_parts = ["  ".join(title_segs)]
     icon = icon_param()
     if icon:
         title_parts.append(icon)
@@ -326,7 +333,20 @@ def main():
             prov = it.get("provider", "")
             region = it.get("region", "")
             stock = it.get("stockStatus", "")
-            print(f"  {count}× {gtype} {isock} · {price_str(it)} · {prov} · {region} · {stock}")
+            text = f"  {count}× {gtype} {isock} · {price_str(it)} · {prov} · {region} · {stock}"
+            payload = base64.urlsafe_b64encode(json.dumps({
+                "cloudId": it.get("cloudId"),
+                "gpuType": gtype,
+                "socket": isock or None,
+                "gpuCount": count,
+                "provider": prov,
+                "dataCenter": it.get("dataCenter"),
+                "country": it.get("country"),
+                "region": region,
+                "stockStatus": stock,
+                "prices": it.get("prices") or {},
+            }).encode()).decode().rstrip("=")
+            print(f"{text} | shell={DEPLOY_BIN} param1={payload} terminal=false")
 
     print("---")
     print(f"Open dashboard | href={DASHBOARD}")

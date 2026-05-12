@@ -12,16 +12,20 @@ iPhone via [ntfy.sh](https://ntfy.sh).
 ![Menu-bar screenshot](assets/screenshot.png)
 
 ```
-$2471.96   H100 ·   H200 ·   A100 ×8   B300 ·
-└─ balance └─────── per-watched-row badge ──────┘
-                ×N = N matching offers right now (red)
-                 ·  = none (default menu-bar color)
+[icon] $2471.96   H100 ·   H200 ·   A100 ●10   B300 ·
+       └ balance  └──── per-watched-row badge ─────┘
+                       ●N = N matching offers right now
+                        · = none
 ```
 
-Tokens with matches render in red; everything else uses the default
-menu-bar text color. Click for a dropdown that lists the cheapest
-offers per config (count, socket, price/hr, provider, region, stock
-status).
+A filled `●N` flags configs that currently have matching offers; `·`
+means none. (We keep the prime-intellect template-image icon up front
+and let the glyph carry the signal — SwiftBar can't render
+`templateImage=` together with `color=` or `ansi=true` on the title.)
+
+Click for a dropdown listing the cheapest offers per config (count,
+socket, price/hr, provider, region, stock status). Each offer row is
+clickable — click it to confirm-and-deploy a pod, see below.
 
 ## Why
 
@@ -151,6 +155,49 @@ If you'd rather self-host or use a different push service, you can
 swap ntfy.sh for any service that accepts a `POST <url>` with an
 arbitrary text body and `Title:` header — see `push_ntfy()` in the
 plugin source.
+
+### Deploy on click
+
+Each offer row in the dropdown is wired to a small helper at
+`bin/prime-deploy.py`:
+
+1. **Click** an offer in the dropdown.
+2. A confirm dialog summarises the offer (count, GPU type, socket,
+   provider, region, datacenter, price, stock) and asks *Deploy* or
+   *Cancel*.
+3. *Deploy* → a second dialog prompts for a **pod name** (default:
+   `prime-gpu-<timestamp>`).
+4. The script POSTs to `https://api.primeintellect.ai/api/v1/pods/`
+   with the offer fields mapped 1:1, plus your chosen name.
+5. A macOS notification (and ntfy push, if configured) reports
+   `Pod provisioning` on success or the API's error `detail` on failure.
+
+Set `PRIME_DRY_RUN=1` in the plugin's environment to skip the actual
+POST while still exercising the dialogs end-to-end (useful for testing
+or before you trust the wiring).
+
+The plugin's pod request body is intentionally minimal:
+
+```json
+{
+  "pod": {
+    "name": "prime-gpu-20260512-153012",
+    "cloudId": "1A100.22V_SPOT",
+    "gpuType": "A100_80GB",
+    "socket": "PCIe",
+    "gpuCount": 1,
+    "dataCenterId": "FIN-03",
+    "country": "FI",
+    "maxPrice": 0.4515
+  },
+  "provider": {"type": "datacrunch"}
+}
+```
+
+Optional things the API supports but the click flow doesn't set yet —
+`sshKeyId`, `image`, `vcpus`, `memory`, `diskSize`, `envVars`,
+`autoRestart`. If you want any of those, either edit
+`bin/prime-deploy.py` or finish the pod in the dashboard.
 
 ### Refresh interval
 
