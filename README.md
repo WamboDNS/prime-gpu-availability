@@ -8,19 +8,12 @@ a glance-able badge in the macOS menu bar, next to your wallet balance.
 When a watched configuration transitions from "none" to "available", you
 get a native macOS notification.
 
-![Menu-bar screenshot](assets/screenshot.png)
+![Plugin screenshot](assets/dropdown.png)
 
-A filled `●N` flags configs that currently have matching offers; `·`
-means none. (We keep the prime-intellect template-image icon up front
-and let the glyph carry the signal — SwiftBar can't render
-`templateImage=` together with `color=` or `ansi=true` on the title.)
-
-Click the menu-bar item and the dropdown lists every matching offer
-under its watched config — providers, sockets, prices, regions and
-stock status. The match-header is red; each offer row underneath is
-clickable to confirm-and-deploy a pod.
-
-![Dropdown screenshot](assets/dropdown.png)
+A filled `●N` token in the menu bar flags configs that currently have
+matching offers; `·` means none. Click the bar to drop the list down —
+the match-header is red, and each offer row underneath is clickable to
+confirm-and-deploy a pod.
 
 ## Why
 
