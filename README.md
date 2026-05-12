@@ -184,41 +184,12 @@ candidate per endpoint and uses whichever one is authorized.
 
 ## What it looks like
 
-Menu-bar title:
+Click the menu-bar item and the dropdown lists every matching offer
+under its watched config — providers, sockets, prices, regions and
+stock status. Match-headers are red; the rows below them are clickable
+to deploy.
 
-```
-$2471.96   H100 ·   H200 ×1   A100 ×6   B300 ×2
-```
-
-Dropdown:
-
-```
-Balance: $2471.96
-Updated: 21:14:38
-Watching 4 config(s), 9 match(es)
-─────────────────────────────────────────────────
-H100_80GB [8-8]: none in range (2 outside)
-─────────────────────────────────────────────────
-H200_141GB [4-8]: 1 match
-  8× H200_141GB SXM5 · $27.12/hr · datacrunch · eu_north · Available
-─────────────────────────────────────────────────
-A100_80GB [1-8]: 6 matches
-  1× A100_80GB SXM4 · $1.23/hr · massedcompute · united_states · Available
-  1× A100_80GB SXM4 · $1.23/hr · massedcompute · united_states · Available
-  1× A100_80GB PCIe · $1.65/hr · crusoecloud · united_states · Available
-  2× A100_80GB PCIe · $2.40/hr · massedcompute · united_states · Available
-  2× A100_80GB PCIe · $3.30/hr · crusoecloud · united_states · Available
-  8× A100_80GB SXM4 · $22.40/hr · vultr · united_states · Available
-─────────────────────────────────────────────────
-B300_262GB [1-8]: 2 matches
-  2× B300_262GB SXM6 · $4.89/hr · datacrunch · eu_north · Available
-  2× B300_262GB SXM6 · $13.98/hr · datacrunch · eu_north · Available
-─────────────────────────────────────────────────
-Open dashboard
-Open billing dashboard
-Edit watch list
-Refresh now
-```
+![Dropdown screenshot](assets/dropdown.png)
 
 ## FAQ
 
