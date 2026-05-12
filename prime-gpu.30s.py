@@ -346,7 +346,7 @@ def main():
                 "stockStatus": stock,
                 "prices": it.get("prices") or {},
             }).encode()).decode().rstrip("=")
-            print(f"{text} | shell={DEPLOY_BIN} param1={payload} terminal=false color={MATCH_HEX}")
+            print(f"{text} | shell={DEPLOY_BIN} param1={payload} terminal=false")
 
     print("---")
     print(f"Open dashboard | href={DASHBOARD}")
