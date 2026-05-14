@@ -81,6 +81,10 @@ sending. The plugin also falls back to `~/.config/prime-balance/key`, so
 [`prime-billing-statusbar`][sibling] users don't have to duplicate their
 token.
 
+The scripts reread configured keys before every API request. If Prime
+returns `401` or `403`, they reread once and retry, so replacing a token
+file takes effect on the next refresh tick without restarting SwiftBar.
+
 ### Watch list
 
 `watch.conf` is line-based, whitespace-separated:

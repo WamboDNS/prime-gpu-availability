@@ -31,6 +31,7 @@ from pathlib import Path
 API_BASE = "https://api.primeintellect.ai/api/v1"
 PODS_ENDPOINT = f"{API_BASE}/pods/"
 PODS_DASHBOARD = "https://app.primeintellect.ai/dashboard/pods"
+AUTH_STATUSES = {401, 403}
 
 CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" / "prime-gpu")
 KEY_FILE = CONFIG_DIR / "key"
@@ -175,8 +176,7 @@ def main():
         notify("Deploy: decode failed", str(e))
         sys.exit(2)
 
-    keys = get_keys()
-    if not keys:
+    if not get_keys():
         notify("Deploy: no API key", f"Set {KEY_FILE} first.")
         sys.exit(2)
 
@@ -229,31 +229,36 @@ def main():
 
     last_status, last_data = None, None
     failures = []
-    for item in keys:
-        status, data = http_post(PODS_ENDPOINT, item["key"], request_body)
-        last_status, last_data = status, data
-        if 200 <= (status or 0) < 300:
-            pod_id = (data or {}).get("id") or ((data or {}).get("pod") or {}).get("id") or "?"
-            notify(
-                "Pod provisioning",
-                f"{name} — {offer['gpuCount']}× {offer['gpuType']} @ {fmt_price(offer.get('prices'))} (id {pod_id})",
-            )
-            print(json.dumps(data, indent=2))
-            sys.exit(0)
-        if isinstance(data, dict):
-            detail = data.get("detail") or data.get("error") or json.dumps(data)[:160]
-        else:
-            detail = "no response body"
-        failures.append({
-            "label": item["label"],
-            "fingerprint": item["fingerprint"],
-            "status": status,
-            "detail": str(detail),
-        })
+    for _attempt in range(2):
+        attempt_failures = []
+        for item in get_keys():
+            status, data = http_post(PODS_ENDPOINT, item["key"], request_body)
+            last_status, last_data = status, data
+            if 200 <= (status or 0) < 300:
+                pod_id = (data or {}).get("id") or ((data or {}).get("pod") or {}).get("id") or "?"
+                notify(
+                    "Pod provisioning",
+                    f"{name} — {offer['gpuCount']}× {offer['gpuType']} @ {fmt_price(offer.get('prices'))} (id {pod_id})",
+                )
+                print(json.dumps(data, indent=2))
+                sys.exit(0)
+            if isinstance(data, dict):
+                detail = data.get("detail") or data.get("error") or json.dumps(data)[:160]
+            else:
+                detail = "no response body"
+            attempt_failures.append({
+                "label": item["label"],
+                "fingerprint": item["fingerprint"],
+                "status": status,
+                "detail": str(detail),
+            })
+        failures.extend(attempt_failures)
+        if not attempt_failures or not all(f["status"] in AUTH_STATUSES for f in attempt_failures):
+            break
 
     if failures:
         summary = "; ".join(
-            f"{Path(f['label']).name} HTTP {f['status']}: {f['detail']}" for f in failures[:3]
+            f"{Path(f['label']).name} HTTP {f['status']}: {f['detail']}" for f in failures[-3:]
         )
     elif isinstance(last_data, dict):
         summary = last_data.get("detail") or json.dumps(last_data)[:300]

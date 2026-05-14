@@ -23,6 +23,7 @@ GPU_ENDPOINT = f"{API_BASE}/availability/gpus"
 WALLET_ENDPOINT = f"{API_BASE}/billing/wallet"
 DASHBOARD = "https://app.primeintellect.ai"
 TIMEOUT = 6
+AUTH_STATUSES = {401, 403}
 
 MATCH_HEX = "#d4423a"
 NONE_HEX = "#888888"
@@ -94,14 +95,20 @@ def http_get_with_key(url, key):
         return None, None
 
 
-def http_get(url, keys):
-    """Try each key until one returns 200; otherwise return the last response."""
+def http_get(url):
+    """Reload keys for this request and retry once after auth failures."""
     last = (None, None)
-    for k in keys:
-        status, data = http_get_with_key(url, k)
-        last = (status, data)
-        if status == 200:
-            return status, data
+    for _attempt in range(2):
+        saw_auth_failure = False
+        for k in get_keys():
+            status, data = http_get_with_key(url, k)
+            last = (status, data)
+            if status == 200:
+                return status, data
+            if status in AUTH_STATUSES:
+                saw_auth_failure = True
+        if not saw_auth_failure:
+            break
     return last
 
 
@@ -146,12 +153,12 @@ def is_spot_offer(item):
     return False
 
 
-def fetch_availability(keys, row):
+def fetch_availability(row):
     params = {"gpu_type": row["gpu_type"], "page_size": 100}
     if row["socket"]:
         params["socket"] = row["socket"]
     url = f"{GPU_ENDPOINT}?{urllib.parse.urlencode(params)}"
-    status, data = http_get(url, keys)
+    status, data = http_get(url)
     if status != 200 or not isinstance(data, dict) or "items" not in data:
         detail = (data or {}).get("detail") if isinstance(data, dict) else None
         return {"row": row, "error": detail or (f"HTTP {status}" if status else "network error")}
@@ -220,8 +227,8 @@ def main():
         )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, 1 + len(watch))) as pool:
-        wallet_future = pool.submit(http_get, WALLET_ENDPOINT, keys)
-        gpu_futures = [pool.submit(fetch_availability, keys, row) for row in watch]
+        wallet_future = pool.submit(http_get, WALLET_ENDPOINT)
+        gpu_futures = [pool.submit(fetch_availability, row) for row in watch]
         wallet_status, wallet_data = wallet_future.result()
         results = [f.result() for f in gpu_futures]
 
