@@ -18,6 +18,7 @@ Set PRIME_DRY_RUN=1 to skip the POST (the dialog still runs).
 """
 
 import base64
+import hashlib
 import json
 import os
 import subprocess
@@ -36,15 +37,35 @@ KEY_FILE = CONFIG_DIR / "key"
 FALLBACK_KEY_FILES = [Path.home() / ".config" / "prime-balance" / "key"]
 
 
+def normalize_key(raw):
+    if not raw:
+        return None
+    key = raw.strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    if not key or key.startswith("PASTE_"):
+        return None
+    return key
+
+
+def key_fingerprint(key):
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:10]
+
+
 def get_keys():
     keys = []
-    def add(k):
-        if k and k.strip() and not k.strip().startswith("PASTE_") and k.strip() not in keys:
-            keys.append(k.strip())
-    add(os.environ.get("PRIME_API_KEY"))
+    seen = set()
+
+    def add(label, raw):
+        key = normalize_key(raw)
+        if key and key not in seen:
+            seen.add(key)
+            keys.append({"label": label, "key": key, "fingerprint": key_fingerprint(key)})
+
+    add("PRIME_API_KEY", os.environ.get("PRIME_API_KEY"))
     for path in [KEY_FILE, *FALLBACK_KEY_FILES]:
         try:
-            add(path.read_text())
+            add(str(path), path.read_text())
         except (FileNotFoundError, PermissionError):
             continue
     return keys
@@ -207,8 +228,9 @@ def main():
         sys.exit(0)
 
     last_status, last_data = None, None
-    for k in keys:
-        status, data = http_post(PODS_ENDPOINT, k, request_body)
+    failures = []
+    for item in keys:
+        status, data = http_post(PODS_ENDPOINT, item["key"], request_body)
         last_status, last_data = status, data
         if 200 <= (status or 0) < 300:
             pod_id = (data or {}).get("id") or ((data or {}).get("pod") or {}).get("id") or "?"
@@ -218,13 +240,36 @@ def main():
             )
             print(json.dumps(data, indent=2))
             sys.exit(0)
+        if isinstance(data, dict):
+            detail = data.get("detail") or data.get("error") or json.dumps(data)[:160]
+        else:
+            detail = "no response body"
+        failures.append({
+            "label": item["label"],
+            "fingerprint": item["fingerprint"],
+            "status": status,
+            "detail": str(detail),
+        })
 
-    detail = "?"
-    if isinstance(last_data, dict):
-        detail = last_data.get("detail") or json.dumps(last_data)[:300]
+    if failures:
+        summary = "; ".join(
+            f"{Path(f['label']).name} HTTP {f['status']}: {f['detail']}" for f in failures[:3]
+        )
+    elif isinstance(last_data, dict):
+        summary = last_data.get("detail") or json.dumps(last_data)[:300]
     elif last_status is not None:
-        detail = f"HTTP {last_status}"
-    notify("Deploy failed", str(detail)[:200])
+        summary = f"HTTP {last_status}"
+    else:
+        summary = "?"
+    notify("Deploy failed", str(summary)[:200])
+    print("Tried API keys:", file=sys.stderr)
+    for failure in failures:
+        print(
+            f"- {failure['label']} ({failure['fingerprint']}): "
+            f"HTTP {failure['status']} {failure['detail']}",
+            file=sys.stderr,
+        )
+    print("", file=sys.stderr)
     print(f"HTTP {last_status}\n{json.dumps(last_data, indent=2) if last_data else ''}", file=sys.stderr)
     sys.exit(1)
 

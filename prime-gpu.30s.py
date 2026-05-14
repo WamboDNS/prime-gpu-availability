@@ -33,6 +33,7 @@ NONE_GLYPH = "·"
 
 SCRIPT_DIR = Path(os.path.realpath(__file__)).parent
 DEPLOY_BIN = SCRIPT_DIR / "bin" / "prime-deploy.py"
+AUTH_CHECK_BIN = SCRIPT_DIR / "bin" / "prime-auth-check.py"
 
 CONFIG_DIR = Path(os.environ.get("PRIME_CONFIG_DIR") or Path.home() / ".config" / "prime-gpu")
 KEY_FILE = CONFIG_DIR / "key"
@@ -60,8 +61,13 @@ def get_keys():
     code should try each in turn until one returns 200."""
     keys = []
     def add(k):
-        if k and k.strip() and not k.strip().startswith("PASTE_") and k.strip() not in keys:
-            keys.append(k.strip())
+        if not k:
+            return
+        k = k.strip()
+        if k.lower().startswith("bearer "):
+            k = k[7:].strip()
+        if k and not k.startswith("PASTE_") and k not in keys:
+            keys.append(k)
     add(os.environ.get("PRIME_API_KEY"))
     for path in [KEY_FILE, *FALLBACK_KEY_FILES]:
         try:
@@ -132,6 +138,14 @@ def short_name(gpu_type):
     return head if head and tail.endswith("GB") else gpu_type
 
 
+def is_spot_offer(item):
+    for field in ("cloudId", "stockStatus", "marketType", "pricingType", "priceType"):
+        value = item.get(field)
+        if isinstance(value, str) and "SPOT" in value.upper():
+            return True
+    return False
+
+
 def fetch_availability(keys, row):
     params = {"gpu_type": row["gpu_type"], "page_size": 100}
     if row["socket"]:
@@ -141,7 +155,7 @@ def fetch_availability(keys, row):
     if status != 200 or not isinstance(data, dict) or "items" not in data:
         detail = (data or {}).get("detail") if isinstance(data, dict) else None
         return {"row": row, "error": detail or (f"HTTP {status}" if status else "network error")}
-    items = data.get("items") or []
+    items = [it for it in data.get("items") or [] if not is_spot_offer(it)]
     matches = [it for it in items if row["min"] <= (it.get("gpuCount") or 0) <= row["max"]]
     matches.sort(key=lambda it: (it.get("prices") or {}).get("onDemand") or float("inf"))
     return {"row": row, "matches": matches, "total_offered": len(items)}
@@ -312,6 +326,7 @@ def main():
     print("---")
     print(f"Open dashboard | href={DASHBOARD}")
     print(f"Open billing dashboard | href={DASHBOARD}/dashboard/billing")
+    print(f"Check API permissions | shell={AUTH_CHECK_BIN} terminal=true")
     print(f"Edit watch list | shell=/usr/bin/open param1={WATCH_FILE} terminal=false")
     print("Refresh now | refresh=true")
 

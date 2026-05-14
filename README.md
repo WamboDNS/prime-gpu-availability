@@ -34,8 +34,9 @@ file automatically and supersedes it (it shows the balance too).
 - macOS (Darwin)
 - [SwiftBar](https://swiftbar.app) — `brew install --cask swiftbar`
 - `/usr/bin/python3` (Apple's system Python — no extra packages needed)
-- A PrimeIntellect API key with `availability:read` scope. Optional:
-  `billing:read` scope if you want the wallet balance shown too.
+- A PrimeIntellect API key with `Availability -> Read` permission.
+  Optional: `Billing -> Read` if you want the wallet balance shown too.
+  Deploying from a click also needs `Instances -> Read and write`.
 
 ## Install
 
@@ -74,9 +75,11 @@ Everything lives in `~/.config/prime-gpu/`:
 | `state.json`                 | Auto-managed: last-seen match counts, for transition detection. |
 
 `PRIME_CONFIG_DIR` in the environment relocates the whole directory.
-`PRIME_API_KEY` overrides the key file. The plugin also falls back to
-`~/.config/prime-balance/key`, so [`prime-billing-statusbar`][sibling]
-users don't have to duplicate their token.
+`PRIME_API_KEY` is tried before the key file. You may paste either the
+raw token or a `Bearer ...` value; the scripts normalize it before
+sending. The plugin also falls back to `~/.config/prime-balance/key`, so
+[`prime-billing-statusbar`][sibling] users don't have to duplicate their
+token.
 
 ### Watch list
 
@@ -96,6 +99,8 @@ B300_262GB           4    8    SXM
   an exact count.
 - The optional 4th column filters by socket: `PCIe` or `SXM`.
 - Blank lines and anything after `#` are ignored.
+- Spot offers are ignored entirely. They are not counted in the menu-bar
+  badge, dropdown rows, notifications, or "outside range" totals.
 
 Real `gpuType` values seen so far:
 
@@ -124,6 +129,20 @@ Each offer row in the dropdown is wired to a small helper at
 5. A macOS notification reports `Pod provisioning` on success, or the
    API's error `detail` on failure.
 
+Prime's API permissions are scoped. The availability dropdown only needs
+`Availability -> Read`, but this deploy action needs a key with
+`Instances -> Read and write`. If a deploy fails, choose
+**Check API permissions** from the dropdown, or run:
+
+```bash
+bin/prime-auth-check.py
+```
+
+The checker prints HTTP status per configured key source without printing
+the key itself. It can safely verify availability, billing, and
+instances-read access; it does not test instances-write because that
+would create a billable pod.
+
 Set `PRIME_DRY_RUN=1` in the plugin's environment to skip the actual
 POST while still exercising the dialogs end-to-end (useful for testing
 or before you trust the wiring).
@@ -134,7 +153,7 @@ The plugin's pod request body is intentionally minimal:
 {
   "pod": {
     "name": "prime-gpu-20260512-153012",
-    "cloudId": "1A100.22V_SPOT",
+    "cloudId": "1A100.22V",
     "gpuType": "A100_80GB",
     "socket": "PCIe",
     "gpuCount": 1,
@@ -167,10 +186,11 @@ Bump to `1m` or `2m` if you'd rather be gentler.
 
 ### Multiple keys / split scopes
 
-If you already have separate tokens — e.g. one with `availability:read`
-and another with `billing:read` — keep them in `~/.config/prime-gpu/key`
-and `~/.config/prime-balance/key` respectively. The plugin tries every
-candidate per endpoint and uses whichever one is authorized.
+If you already have separate tokens — e.g. one with `Availability -> Read`,
+another with `Billing -> Read`, and another with `Instances -> Read and
+write` — keep them in `~/.config/prime-gpu/key`, `PRIME_API_KEY`, or
+`~/.config/prime-balance/key`. The plugin tries every candidate per
+endpoint and uses whichever one is authorized.
 
 ## FAQ
 

@@ -60,6 +60,7 @@ fi
 
 # --- 4. Plugin symlink -------------------------------------------------------
 chmod +x "${REPO_DIR}/${PLUGIN_SCRIPT}"
+chmod +x "${REPO_DIR}/bin/prime-deploy.py" "${REPO_DIR}/bin/prime-auth-check.py"
 mkdir -p "${PLUGIN_DIR}"
 ln -sfn "${REPO_DIR}/${PLUGIN_SCRIPT}" "${PLUGIN_DIR}/${PLUGIN_SCRIPT}"
 echo "✓ plug  → ${PLUGIN_DIR}/${PLUGIN_SCRIPT} → ${REPO_DIR}/${PLUGIN_SCRIPT}"
