@@ -264,14 +264,14 @@ def main():
             new_state[key_id] = {"fp": None}
             continue
         n = len(res["matches"])
-        fp = _offers_fingerprint(res["matches"])
+        prev = prev_state.get(key_id) or {}
+        fp = _offers_fingerprint(res["matches"]) if n > 0 else prev.get("fp")
         new_state[key_id] = {"fp": fp}
         total_matches += n
         if n > 0:
             title_segs.append(f"{s} {MATCH_GLYPH}{n}")
         else:
             title_segs.append(f"{s} {NONE_GLYPH}")
-        prev = prev_state.get(key_id) or {}
         if n > 0 and fp != prev.get("fp"):
             cheapest = res["matches"][0]
             notifications.append(
