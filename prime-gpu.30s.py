@@ -8,6 +8,7 @@
 
 import base64
 import concurrent.futures
+import hashlib
 import json
 import os
 import subprocess
@@ -189,6 +190,15 @@ def save_state(state):
         pass
 
 
+def _offers_fingerprint(matches):
+    keys = []
+    for it in matches:
+        od = (it.get("prices") or {}).get("onDemand")
+        keys.append((it.get("cloudId", ""), it.get("gpuCount", 0), od))
+    keys.sort()
+    return hashlib.sha256(json.dumps(keys).encode()).hexdigest()[:16]
+
+
 def notify(title, body):
     safe = lambda s: s.replace("\\", "").replace('"', "'")
     subprocess.Popen(
@@ -244,30 +254,32 @@ def main():
     total_matches = 0
     prev_state = load_state()
     new_state = {}
-    transitions = []
+    notifications = []
     for res in results:
         row = res["row"]
         key_id = f"{row['gpu_type']}|{row['socket'] or ''}|{row['min']}-{row['max']}"
         s = short_name(row["gpu_type"])
         if "error" in res:
             title_segs.append(f"{s} ?")
-            new_state[key_id] = -1
+            new_state[key_id] = {"fp": None}
             continue
         n = len(res["matches"])
-        new_state[key_id] = n
+        fp = _offers_fingerprint(res["matches"])
+        new_state[key_id] = {"fp": fp}
         total_matches += n
         if n > 0:
             title_segs.append(f"{s} {MATCH_GLYPH}{n}")
         else:
             title_segs.append(f"{s} {NONE_GLYPH}")
-        if n > 0 and prev_state.get(key_id, 0) <= 0:
+        prev = prev_state.get(key_id) or {}
+        if n > 0 and fp != prev.get("fp"):
             cheapest = res["matches"][0]
-            transitions.append(
+            notifications.append(
                 f"{row['gpu_type']} [{row['min']}-{row['max']}] → {n} match"
                 f"{'es' if n != 1 else ''} (cheapest {price_str(cheapest)})"
             )
     save_state(new_state)
-    for line in transitions:
+    for line in notifications:
         notify("Prime GPU available", line)
 
     # NOTE: SwiftBar suppresses templateImage when color= or ansi=true is also
